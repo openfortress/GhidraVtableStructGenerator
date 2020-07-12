@@ -11,13 +11,23 @@ from ghidra.program.model.data import StructureDataType
 from ghidra.program.model.data import DataType
 from ghidra.program.model.data import PointerDataType
 from ghidra.program.model.data import FunctionDefinitionDataType
+from ghidra.program.model.data import GenericCallingConvention
+from ghidra.program.model.data import ParameterDefinitionImpl
+
+dataManager = currentProgram.getDataTypeManager()
 
 def getAddress(offset):
 	return currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(offset)
 
+def getDataTypeFromString(dtName):
+	listOfDataTypes = dataManager.getAllDataTypes()
+	for dtI in listOfDataTypes:
+		if l.getName() == dtName:
+			return l
+
 functionManager = currentProgram.getFunctionManager()
 listing = currentProgram.getListing()
-dataManager = currentProgram.getDataTypeManager()
+
 
 addr = askAddress("Location of vtable", "Input offset where class vtable begins")
 structName = askString("Name of struct", "Input name of structure to be added")
@@ -27,10 +37,10 @@ dt = PointerDataType()
 preexist = False
 lofd = dataManager.getAllStructures()
 for l in lofd:
-		if l.getName() == structName:
-			preexiststruct = l
-			preexist = True
-			break
+	if l.getName() == structName:
+		preexiststruct = l
+		preexist = True
+		break
 
 
 
@@ -47,9 +57,15 @@ while keepgoing:
 		fntoadd = functionManager.getFunctionContaining(getAddress(valparts[1]))
 		print(fntoadd)
 		if fntoadd != None:
-			dt = FunctionDefinitionDataType(fntoadd, True)
-			ptr = PointerDataType(dt)
-			structData.add(ptr, 4, functionManager.getFunctionContaining(getAddress(valparts[1])).toString(), "")
+			dt = FunctionDefinitionDataType(fntoadd, False) #Second parameter is "Formality", dont know exactly what it does
+			#dt.setGenericCallingConvention(GenericCallingConvention.get(3))
+			#fnparams = dt.getArguments()
+			#className = functionManager.getFunctionContaining(getAddress(valparts[1])).toString().split(":")[0]
+			#paramtoadd = ParameterDefinitionImpl("this", getDataTypeFromString(className), "") 
+			#fnparams.insert(0, paramtoadd)
+			#dt.setArguments(fnparams)
+			#ptr = PointerDataType(dt)
+			structData.add(dt, 4, functionManager.getFunctionContaining(getAddress(valparts[1])).toString(), "")
 	else:
 		keepgoing = False
 
