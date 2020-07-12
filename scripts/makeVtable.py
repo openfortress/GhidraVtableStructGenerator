@@ -10,6 +10,7 @@ from ghidra.program.model.data import DataTypeConflictHandler
 from ghidra.program.model.data import StructureDataType
 from ghidra.program.model.data import DataType
 from ghidra.program.model.data import PointerDataType
+from ghidra.program.model.data import FunctionDefinitionDataType
 
 def getAddress(offset):
 	return currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(offset)
@@ -23,6 +24,16 @@ structName = askString("Name of struct", "Input name of structure to be added")
 structData = StructureDataType(structName, 0)
 dt = PointerDataType()
 
+preexist = False
+lofd = dataManager.getAllStructures()
+for l in lofd:
+		if l.getName() == structName:
+			preexiststruct = l
+			preexist = True
+			break
+
+
+
 print(addr)
 codeUnits = listing.getCodeUnits(addr, True)
 
@@ -33,10 +44,18 @@ while keepgoing:
 	valparts = fs.toString().split()
 	if valparts[0] == "addr":
 		print("YES, this is an pointer")
-		print(functionManager.getFunctionContaining(getAddress(valparts[1])))
-		structData.add(dt, 4, functionManager.getFunctionContaining(getAddress(valparts[1])).toString(), "")
+		fntoadd = functionManager.getFunctionContaining(getAddress(valparts[1]))
+		print(fntoadd)
+		if fntoadd != None:
+			dt = FunctionDefinitionDataType(fntoadd, True)
+			ptr = PointerDataType(dt)
+			structData.add(ptr, 4, functionManager.getFunctionContaining(getAddress(valparts[1])).toString(), "")
 	else:
 		keepgoing = False
 
-
-dataManager.addDataType(structData, DataTypeConflictHandler.DEFAULT_HANDLER)
+if preexist == True:
+	dataManager.replaceDataType(preexiststruct, structData, False)
+	print("Replaced " + structName)
+else:
+	dataManager.addDataType(structData, DataTypeConflictHandler.DEFAULT_HANDLER)
+	print("Created " + structName)
