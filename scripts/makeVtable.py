@@ -15,26 +15,30 @@ from ghidra.program.model.data import FunctionDefinitionDataType
 from ghidra.program.model.data import GenericCallingConvention
 from ghidra.program.model.data import ParameterDefinitionImpl
 from ghidra.program.model.data import CategoryPath
+from ghidra.util.NumericUtilities import convertBytesToString
 
 dataManager = currentProgram.getDataTypeManager()
 
 
 
 def getAddress(offset):
-	return currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(offset)
+	if offset == "" or offset == 0:
+		return currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(0)
+	else:
+		return currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(offset)
 
 def getDataTypeFromString(dtName):
 	listOfDataTypes = dataManager.getAllDataTypes()
 	for dtI in listOfDataTypes:
 		if dtI.getName() == dtName:
-			return dtI
+			if type(dtI) == StructureDataType:
+				return dtI
 
 def getClassName(unparsedFnName):
 	tmpLst = unparsedFnName.split("::")
 	return tmpLst[0]
 
 functionManager = currentProgram.getFunctionManager()
-listing = currentProgram.getListing()
 
 
 #addr = askAddress("Location of vtable", "Input offset where class vtable begins")
@@ -44,18 +48,22 @@ listing = currentProgram.getListing()
 #print(addr)
 
 def generateVtableStruct(vtableAddr):
-	codeUnits = listing.getCodeUnits(vtableAddr.add(8), True)
+	mem = currentProgram.getMemory()
 	vtableClassName = ""
 	vtableName = ""
 	structData = None
 	keepgoing = True
+	cAddr = vtableAddr.add(8)
 	#tmp = next(codeUnits)
 	#tmp = next(codeUnits)
-	for fs in codeUnits:
-		valparts = fs.toString().split()
-		if valparts[0] == "addr":
+	while True:
+		monitor.checkCanceled()
+		fs = getAddress(mem.getInt(cAddr))
+		valpart = fs.toString()
+		fntoadd = functionManager.getFunctionContaining(getAddress(valpart))
+		if fntoadd != None:
 			#print("YES, this is an pointer")
-			fntoadd = functionManager.getFunctionContaining(getAddress(valparts[1]))
+			
 			if vtableName == "":
 				vtableClassName = getClassName(fntoadd.toString())
 				vtableName = "vtable" + vtableClassName
@@ -70,27 +78,31 @@ def generateVtableStruct(vtableAddr):
 				ptr = PointerDataType(dtAdded)
 				ptr.setCategoryPath(CategoryPath("/" + vtableName))
 				ptrAdded = dataManager.addDataType(ptr, DataTypeConflictHandler.REPLACE_HANDLER)
-				structData.add(ptrAdded, ptrAdded.getLength(), functionManager.getFunctionContaining(getAddress(valparts[1])).toString(), "")
+				structData.add(ptrAdded, ptrAdded.getLength(), fntoadd.toString(), "")
 		else:
 			break
+		cAddr = cAddr.add(4)
 		
 			
 			
 
 			
 
+	if structData != None:
+		vtableCDataType = dataManager.addDataType(structData, DataTypeConflictHandler.REPLACE_HANDLER)
+		vtableCDataTypePtr = PointerDataType(vtableCDataType)
+		vtableDTtoAdd = dataManager.addDataType(vtableCDataTypePtr, DataTypeConflictHandler.REPLACE_HANDLER)
+		print("Created " + vtableName)
 
-	vtableCDataType = dataManager.addDataType(structData, DataTypeConflictHandler.REPLACE_HANDLER)
-	vtableCDataTypePtr = PointerDataType(vtableCDataType)
-	vtableDTtoAdd = dataManager.addDataType(vtableCDataTypePtr, DataTypeConflictHandler.REPLACE_HANDLER)
-	print("Created " + vtableName)
-
-	classDT = getDataTypeFromString(vtableClassName)
-	print("Adding vtable to " + classDT.getName() + " structure")
-	if classDT.getDataTypeAt(0) != None:
-		classDT.delete(0)
-	classDT.insert(0, vtableDTtoAdd, vtableDTtoAdd.getLength(), "vtable", "")
-	#classDT.realign()
+		classDT = getDataTypeFromString(vtableClassName)
+		if classDT != None:
+			print("Adding vtable to " + classDT.getName() + " structure")
+			if classDT.getDataTypeAt(0) != None:
+				classDT.delete(0)
+			classDT.insert(0, vtableDTtoAdd, vtableDTtoAdd.getLength(), "vtable", "")
+			#classDT.realign()
+	else:
+		print("Skipped " + vtableName)
 
 
 ##CODE FROM NOPEY
@@ -106,14 +118,23 @@ symbol_table = currentProgram.getSymbolTable()
 symbols = symbol_table.getSymbolIterator()
 
 monitor.initialize(symbol_table.getNumSymbols())
+monitor.setMessage("Getting all Vtables")
+
+allDaVtables = []
 
 for symbol in symbols:
-    monitor.checkCanceled()
-    if symbol.getName().startswith("__ZTV"):
-        print(symbol)
-		vtA = symbol.getAddress()
-		generateVtableStruct(vtA)
-    monitor.incrementProgress(1)
+	monitor.checkCanceled()
+	if symbol.getName().startswith("__ZTV"):
+		print(symbol)
+		allDaVtables.append(symbol.getAddress())
+		#generateVtableStruct(vtA)
+	monitor.incrementProgress(1)
+
+monitor.initialize(len(allDaVtables))
+for s in allDaVtables:
+	monitor.checkCanceled()
+	generateVtableStruct(s)
+	monitor.incrementProgress(1)
 
 ###END CODE FROM NOPEY
 
