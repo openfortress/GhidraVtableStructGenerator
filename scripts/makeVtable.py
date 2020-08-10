@@ -68,15 +68,18 @@ def generateVtableStruct(vtableAddr):
 				vtableClassName = getClassName(fntoadd.toString())
 				vtableName = "vtable" + vtableClassName
 				structData = StructureDataType(vtableName, 0)
-				print("Making vtable for " + vtableClassName)
+				#print("Making vtable for " + vtableClassName)
 				monitor.setMessage("Observe: Making vtable for " + vtableClassName)
-			print(fntoadd)
+			#print(fntoadd)
 			if fntoadd != None:
 				dt = FunctionDefinitionDataType(fntoadd, False) #Second parameter is "Formality", I think this strips the "this" parameter, so lets not set this True
-				dt.setCategoryPath(CategoryPath("/" + vtableName))
+				#dt.setCategoryPath(CategoryPath("/" + vtableName))
+				fnClass = getClassName(fntoadd.toString())
+				dt.setCategoryPath(CategoryPath("/vtable" + fnClass))
 				dtAdded = dataManager.addDataType(dt, DataTypeConflictHandler.REPLACE_HANDLER)
 				ptr = PointerDataType(dtAdded)
-				ptr.setCategoryPath(CategoryPath("/" + vtableName))
+				#ptr.setCategoryPath(CategoryPath("/" + vtableName))
+				ptr.setCategoryPath(CategoryPath("/vtable" + fnClass))
 				ptrAdded = dataManager.addDataType(ptr, DataTypeConflictHandler.REPLACE_HANDLER)
 				structData.add(ptrAdded, ptrAdded.getLength(), fntoadd.toString(), "")
 		else:
@@ -94,13 +97,6 @@ def generateVtableStruct(vtableAddr):
 		vtableDTtoAdd = dataManager.addDataType(vtableCDataTypePtr, DataTypeConflictHandler.REPLACE_HANDLER)
 		print("Created " + vtableName)
 
-		classDT = getDataTypeFromString(vtableClassName)
-		if classDT != None:
-			print("Adding vtable to " + classDT.getName() + " structure")
-			if classDT.getDataTypeAt(0) != None:
-				classDT.delete(0)
-			classDT.insert(0, vtableDTtoAdd, vtableDTtoAdd.getLength(), "vtable", "")
-			#classDT.realign()
 	else:
 		print("Skipped " + vtableName)
 
