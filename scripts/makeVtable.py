@@ -43,7 +43,8 @@ functionManager = currentProgram.getFunctionManager()
 
 #addr = askAddress("Location of vtable", "Input offset where class vtable begins")
 #structName = askString("Name of struct", "Input name of structure to be added")
-
+doGoogle = askYesNo("Performance Option", "Would you like to try and make vtables for google based API classes?")
+doFOSS = askYesNo("Performance Option", "Would you like to try and make vtables for common open source libraries? (eg: Crypto++)")
 
 #print(addr)
 
@@ -67,6 +68,10 @@ def generateVtableStruct(vtableAddr):
 			if vtableName == "":
 				vtableClassName = getClassName(fntoadd.toString())
 				vtableName = "vtable" + vtableClassName
+				if vtableClassName == "google" and not doGoogle:
+					break
+				if vtableClassName == "CryptoPP" and not doFOSS:
+					break
 				structData = StructureDataType(vtableName, 0)
 				#print("Making vtable for " + vtableClassName)
 				monitor.setMessage("Observe: Making vtable for " + vtableClassName)
