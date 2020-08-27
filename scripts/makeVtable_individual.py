@@ -2,7 +2,7 @@
 #@author Fenteale
 #@category vtable
 #@keybinding 
-#@menupath Tools.Misc.Make Vtable Struct
+#@menupath Tools.Misc.Make Single Vtable Struct 
 #@toolbar 
 
 #from binascii import hexlify
@@ -18,6 +18,7 @@ from ghidra.program.model.data import CategoryPath
 from ghidra.util.NumericUtilities import convertBytesToString
 
 dataManager = currentProgram.getDataTypeManager()
+
 
 
 
@@ -41,30 +42,20 @@ def getClassName(unparsedFnName):
 functionManager = currentProgram.getFunctionManager()
 
 
-#addr = askAddress("Location of vtable", "Input offset where class vtable begins")
-#structName = askString("Name of struct", "Input name of structure to be added")
-doGoogle = askYesNo("Performance Option", "Would you like to try and make vtables for google based API classes?")
-doFOSS = askYesNo("Performance Option", "Would you like to try and make vtables for common open source libraries? (eg: Crypto++)")
+addr = askAddress("Location of vtable", "Input offset where class vtable begins")
+structName = askString("Name of struct", "Input name of class to be added")
+#doGoogle = askYesNo("Performance Option", "Would you like to try and make vtables for google based API classes?")
+#doFOSS = askYesNo("Performance Option", "Would you like to try and make vtables for common open source libraries? (eg: Crypto++)")
 
 #print(addr)
 
-def generateVtableStruct(vtableSymbol):
-	vtableAddr = vtableSymbol.getAddress()
+def generateVtableStruct(vtableAddr):
 	mem = currentProgram.getMemory()
-	nameStartsAt = 5
-	while True:
-		if vtableSymbol.getName()[nameStartsAt].isdigit():
-			nameStartsAt += 1
-		else:
-			break
-
-	vtableClassName = vtableSymbol.getName()[nameStartsAt:]
-	vtableName = ""
-	structData = None
+	vtableClassName = structName
+	vtableName = "vtable" + vtableClassName
 	keepgoing = True
 	cAddr = vtableAddr.add(8)
-	#tmp = next(codeUnits)
-	#tmp = next(codeUnits)
+	structData = StructureDataType(vtableName, 0)
 	while True:
 		monitor.checkCanceled()
 		fs = getAddress(mem.getInt(cAddr))
@@ -73,16 +64,6 @@ def generateVtableStruct(vtableSymbol):
 		if fntoadd != None:
 			#print("YES, this is an pointer")
 			
-			if vtableName == "":
-				#vtableClassName = getClassName(fntoadd.toString())
-				vtableName = "vtable" + vtableClassName
-				if vtableClassName == "google" and not doGoogle:
-					break
-				if vtableClassName == "CryptoPP" and not doFOSS:
-					break
-				structData = StructureDataType(vtableName, 0)
-				#print("Making vtable for " + vtableClassName)
-				monitor.setMessage("Observe: Making vtable for " + vtableClassName)
 			#print(fntoadd)
 			if fntoadd != None:
 				dt = FunctionDefinitionDataType(fntoadd, False) #Second parameter is "Formality", I think this strips the "this" parameter, so lets not set this True
@@ -113,38 +94,4 @@ def generateVtableStruct(vtableSymbol):
 	else:
 		print("Skipped " + vtableName)
 
-
-##CODE FROM NOPEY
-#Finds all VTables, prints them out in the console
-#@author Magnus "Nopey" Larsen
-#@category 
-#@keybinding 
-#@menupath Tools.Misc.Find all VTables
-#@toolbar 
-
-symbol_table = currentProgram.getSymbolTable()
-
-symbols = symbol_table.getSymbolIterator()
-
-monitor.initialize(symbol_table.getNumSymbols())
-monitor.setMessage("Getting all Vtables")
-
-allDaVtables = []
-
-for symbol in symbols:
-	monitor.checkCanceled()
-	if symbol.getName().startswith("__ZTV"):
-		print(symbol)
-		allDaVtables.append(symbol)
-		#generateVtableStruct(vtA)
-	monitor.incrementProgress(1)
-
-monitor.initialize(len(allDaVtables))
-for s in allDaVtables:
-	monitor.checkCanceled()
-	generateVtableStruct(s)
-	monitor.incrementProgress(1)
-
-###END CODE FROM NOPEY
-
-#generateVtableStruct(addr)
+generateVtableStruct(addr)
