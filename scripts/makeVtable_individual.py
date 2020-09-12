@@ -54,10 +54,22 @@ def generateVtableStruct(vtableAddr):
 	vtableClassName = structName
 	vtableName = "vtable" + vtableClassName
 	keepgoing = True
-	cAddr = vtableAddr.add(8)
+	cAddr = vtableAddr #.add(8)
 	structData = StructureDataType(vtableName, 0)
+	antiFreeze = 0
 	while True:
-		monitor.checkCanceled()
+		#print("Checking " + cAddr.toString())
+		fnToCheck = functionManager.getFunctionContaining(getAddress(getAddress(mem.getInt(cAddr)).toString()))
+		if fnToCheck != None:
+			#print("Found start of vtable")
+			break
+		if antiFreeze >= 100:
+			print("Something has to have gone wrong...")
+			return
+		cAddr = cAddr.add(1)
+		antiFreeze += 1
+		
+	while True:
 		fs = getAddress(mem.getInt(cAddr))
 		valpart = fs.toString()
 		fntoadd = functionManager.getFunctionContaining(getAddress(valpart))
@@ -77,6 +89,7 @@ def generateVtableStruct(vtableAddr):
 				ptrAdded = dataManager.addDataType(ptr, DataTypeConflictHandler.REPLACE_HANDLER)
 				structData.add(ptrAdded, ptrAdded.getLength(), fntoadd.toString(), "")
 		else:
+			print("Vtable reached the end.")
 			break
 		cAddr = cAddr.add(4)
 		

@@ -46,11 +46,13 @@ functionManager = currentProgram.getFunctionManager()
 doGoogle = askYesNo("Performance Option", "Would you like to try and make vtables for google based API classes?")
 doFOSS = askYesNo("Performance Option", "Would you like to try and make vtables for common open source libraries? (eg: Crypto++)")
 
+
+mem = currentProgram.getMemory()
 #print(addr)
 
 def generateVtableStruct(vtableSymbol):
 	vtableAddr = vtableSymbol.getAddress()
-	mem = currentProgram.getMemory()
+	
 	nameStartsAt = 5
 	while True:
 		if vtableSymbol.getName()[nameStartsAt].isdigit():
@@ -62,9 +64,31 @@ def generateVtableStruct(vtableSymbol):
 	vtableName = ""
 	structData = None
 	keepgoing = True
-	cAddr = vtableAddr.add(8)
+	#cAddr = vtableAddr.add(8)
+	cAddr = vtableAddr
 	#tmp = next(codeUnits)
 	#tmp = next(codeUnits)
+	antiFreeze = 0
+	while True:
+		monitor.checkCanceled()
+		#print("Checking " + cAddr.toString())
+		fnToCheck = functionManager.getFunctionContaining(getAddress(getAddress(mem.getInt(cAddr)).toString()))
+		if fnToCheck != None:
+			#print("Found start of vtable")
+			break
+		if antiFreeze >= 100:
+			print("Something has to have gone wrong...")
+			return
+		cAddr = cAddr.add(1)
+		antiFreeze += 1
+
+	if "google" in vtableClassName and not doGoogle:
+		print("Skipped vtable" + vtableClassName)
+		return
+	if "CryptoPP" in vtableClassName and not doFOSS:
+		print("Skipped vtable" + vtableClassName)
+		return
+
 	while True:
 		monitor.checkCanceled()
 		fs = getAddress(mem.getInt(cAddr))
@@ -76,10 +100,7 @@ def generateVtableStruct(vtableSymbol):
 			if vtableName == "":
 				#vtableClassName = getClassName(fntoadd.toString())
 				vtableName = "vtable" + vtableClassName
-				if vtableClassName == "google" and not doGoogle:
-					break
-				if vtableClassName == "CryptoPP" and not doFOSS:
-					break
+				
 				structData = StructureDataType(vtableName, 0)
 				#print("Making vtable for " + vtableClassName)
 				monitor.setMessage("Observe: Making vtable for " + vtableClassName)
