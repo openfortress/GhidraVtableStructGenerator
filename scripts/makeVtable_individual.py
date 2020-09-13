@@ -18,7 +18,7 @@ from ghidra.program.model.data import CategoryPath
 from ghidra.util.NumericUtilities import convertBytesToString
 
 dataManager = currentProgram.getDataTypeManager()
-
+CUManager = currentProgram.getCodeManager()
 
 
 
@@ -59,14 +59,17 @@ def generateVtableStruct(vtableAddr):
 	antiFreeze = 0
 	while True:
 		#print("Checking " + cAddr.toString())
-		fnToCheck = functionManager.getFunctionContaining(getAddress(getAddress(mem.getInt(cAddr)).toString()))
-		if fnToCheck != None:
-			#print("Found start of vtable")
+		
+		fnToCheck = CUManager.getCodeUnitContaining(cAddr)
+		#print(fnToCheck.getMnemonicString())
+		if fnToCheck != None and fnToCheck.getMnemonicString() == "addr":
+			#print("Found start of vtable at")
+			cAddr = cAddr.add(4)
 			break
 		if antiFreeze >= 100:
 			print("Something has to have gone wrong...")
 			return
-		cAddr = cAddr.add(1)
+		cAddr = cAddr.add(4)
 		antiFreeze += 1
 		
 	while True:
